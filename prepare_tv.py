@@ -133,45 +133,62 @@ for meta in list(app.findall('meta-data')):
         app.remove(meta)
 tree.write(ROOT/'AndroidManifest.xml', encoding='utf-8', xml_declaration=True)
 config = ROOT/'apktool.yml'
-content = config.read_text().replace('versionCode: 5703', 'versionCode: 5703003').replace('versionName: 6.38.11', 'versionName: 6.38.11-tv.3').replace('minSdkVersion: 24', 'minSdkVersion: 26')
+content = config.read_text().replace('versionCode: 5703', 'versionCode: 5703004').replace('versionName: 6.38.11', 'versionName: 6.38.11-tv.4').replace('minSdkVersion: 24', 'minSdkVersion: 26')
 config.write_text(content)
 
-# After Android 12 accepts Cloudflare's VPN profile flow, the stock result
-# callback only starts the service when an unrelated deferred result field is
-# set. On a fresh TV install that field is null, leaving the switch enabled but
-# the tunnel stopped. If this activity returned with VPN permission granted,
-# start the normal Cloudflare flow from the existing ViewModel.
-profile_result = ROOT/'smali/com/cloudflare/app/presentation/main/maincontrol/e.smali'
-content = profile_result.read_text()
-anchor = '    iget-object v0, p1, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlFragment;->r:Ljava/lang/Integer;'
-if content.count(anchor) != 1:
-    raise SystemExit('Could not locate the VPN activity-result callback anchor.')
-content = content.replace(anchor, '    const/4 v5, 0x0\n'+anchor, 1)
-anchor = '    if-eqz v0, :cond_1'
-if content.count(anchor) != 1:
-    raise SystemExit('Could not locate deferred-result branch.')
-content = content.replace(anchor, anchor+'\n    const/4 v5, 0x1', 1)
-anchor = '    :cond_1\n    return-void'
-if content.count(anchor) != 1:
-    raise SystemExit('Could not locate callback exit for activation restart.')
-new = '''    :cond_1
-    if-nez v5, :tv_profile_done
-    sget v1, Landroid/os/Build$VERSION;->SDK_INT:I
-    const/16 v2, 0x21
-    if-lt v1, v2, :tv_check_profile_permission
-    goto :tv_profile_done
-    :tv_check_profile_permission
-    invoke-virtual {p1}, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlFragment;->k()Lcom/cloudflare/app/presentation/main/maincontrol/MainControlViewModel;
-    move-result-object v0
-    iget-object v1, v0, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlViewModel;->a:Lcom/cloudflare/app/domain/connectiontest/VpnProfileStatusService;
-    invoke-virtual {v1}, Lcom/cloudflare/app/domain/connectiontest/VpnProfileStatusService;->b()Z
+# The stock callback is touch-only. RemoteSupport calls performClick(), which
+# toggles the drawable without setting TouchableOnCheckedChangeListener.b.
+# Mark real click dispatch, consume the mark before invoking the connection
+# callback, and leave programmatic setChecked() updates silent.
+switch = ROOT/'smali/com/cloudflare/app/presentation/widget/CometSwitch.smali'
+content = switch.read_text()
+if 'performClick()Z' in content or 'tvClickInProgress' in content:
+    raise SystemExit('Expected the original CometSwitch without a click override.')
+content = content.replace('# instance fields', '# instance fields\n.field public tvClickInProgress:Z', 1)
+content += """
+.method public performClick()Z
+    .locals 2
+    const/4 v0, 0x1
+    iput-boolean v0, p0, Lcom/cloudflare/app/presentation/widget/CometSwitch;->tvClickInProgress:Z
+    :tv_click_start
+    invoke-super {p0}, Landroidx/appcompat/widget/SwitchCompat;->performClick()Z
     move-result v1
-    if-eqz v1, :tv_profile_done
-    invoke-virtual {v0}, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlViewModel;->d()V
-    :tv_profile_done
-    return-void'''
-content = content.replace(anchor, new, 1)
-profile_result.write_text(content)
+    :tv_click_end
+    const/4 v0, 0x0
+    iput-boolean v0, p0, Lcom/cloudflare/app/presentation/widget/CometSwitch;->tvClickInProgress:Z
+    return v1
+    .catchall {:tv_click_start .. :tv_click_end} :tv_click_failed
+    :tv_click_failed
+    move-exception v1
+    const/4 v0, 0x0
+    iput-boolean v0, p0, Lcom/cloudflare/app/presentation/widget/CometSwitch;->tvClickInProgress:Z
+    throw v1
+.end method
+"""
+switch.write_text(content)
+listener = ROOT/'smali/com/cloudflare/app/presentation/widget/TouchableOnCheckedChangeListener.smali'
+content = listener.read_text()
+start = content.index('.method public final onCheckedChanged(')
+end = content.index('.end method', start) + len('.end method')
+content = content[:start] + """.method public final onCheckedChanged(Landroid/widget/CompoundButton;Z)V
+    .locals 2
+    check-cast p1, Lcom/cloudflare/app/presentation/widget/CometSwitch;
+    iget-boolean v0, p0, Lcom/cloudflare/app/presentation/widget/TouchableOnCheckedChangeListener;->b:Z
+    if-nez v0, :tv_user_change
+    iget-boolean v0, p1, Lcom/cloudflare/app/presentation/widget/CometSwitch;->tvClickInProgress:Z
+    if-eqz v0, :tv_checked_done
+    :tv_user_change
+    const/4 v0, 0x0
+    iput-boolean v0, p0, Lcom/cloudflare/app/presentation/widget/TouchableOnCheckedChangeListener;->b:Z
+    iput-boolean v0, p1, Lcom/cloudflare/app/presentation/widget/CometSwitch;->tvClickInProgress:Z
+    invoke-static {p2}, Ljava/lang/Boolean;->valueOf(Z)Ljava/lang/Boolean;
+    move-result-object v0
+    iget-object v1, p0, Lcom/cloudflare/app/presentation/widget/TouchableOnCheckedChangeListener;->a:Lkotlin/jvm/functions/Function1;
+    invoke-interface {v1, v0}, Lkotlin/jvm/functions/Function1;->invoke(Ljava/lang/Object;)Ljava/lang/Object;
+    :tv_checked_done
+    return-void
+.end method""" + content[end:]
+listener.write_text(content)
 
 # A fresh TV install can reach the dashboard before Cloudflare has a device
 # registration ID. The stock toggle then resets itself and shows a managed-

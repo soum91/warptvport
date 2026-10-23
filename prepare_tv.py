@@ -4,7 +4,6 @@ This does not supply Cloudflare's native libraries or produce a runnable APK.
 The matching armeabi-v7a split must be supplied before packaging for Sony VH22.
 """
 from pathlib import Path
-import base64
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).parent / 'decoded'
@@ -112,10 +111,7 @@ helper.mkdir(exist_ok=True)
 import shutil
 banner = ROOT/'res/drawable-nodpi/tv_banner.png'
 banner.parent.mkdir(exist_ok=True)
-banner_source = Path(__file__).parent/'tv_banner.png'
-if not banner_source.exists():
-    banner_source.write_bytes(base64.b64decode((Path(__file__).parent/'tv_banner.png.b64').read_text()))
-shutil.copyfile(banner_source, banner)
+shutil.copyfile(Path(__file__).parent/'tv_banner.png', banner)
 
 # Keep the original Java/Kotlin namespace, but give the installed app its own ID.
 old_id = 'com.cloudflare.onedotonedotonedotone'
@@ -137,8 +133,45 @@ for meta in list(app.findall('meta-data')):
         app.remove(meta)
 tree.write(ROOT/'AndroidManifest.xml', encoding='utf-8', xml_declaration=True)
 config = ROOT/'apktool.yml'
-content = config.read_text().replace('versionCode: 5703', 'versionCode: 5703002').replace('versionName: 6.38.11', 'versionName: 6.38.11-tv.2').replace('minSdkVersion: 24', 'minSdkVersion: 26')
+content = config.read_text().replace('versionCode: 5703', 'versionCode: 5703003').replace('versionName: 6.38.11', 'versionName: 6.38.11-tv.3').replace('minSdkVersion: 24', 'minSdkVersion: 26')
 config.write_text(content)
+
+# After Android 12 accepts Cloudflare's VPN profile flow, the stock result
+# callback only starts the service when an unrelated deferred result field is
+# set. On a fresh TV install that field is null, leaving the switch enabled but
+# the tunnel stopped. If this activity returned with VPN permission granted,
+# start the normal Cloudflare flow from the existing ViewModel.
+profile_result = ROOT/'smali/com/cloudflare/app/presentation/main/maincontrol/e.smali'
+content = profile_result.read_text()
+anchor = '    iget-object v0, p1, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlFragment;->r:Ljava/lang/Integer;'
+if content.count(anchor) != 1:
+    raise SystemExit('Could not locate the VPN activity-result callback anchor.')
+content = content.replace(anchor, '    const/4 v5, 0x0\n'+anchor, 1)
+anchor = '    if-eqz v0, :cond_1'
+if content.count(anchor) != 1:
+    raise SystemExit('Could not locate deferred-result branch.')
+content = content.replace(anchor, anchor+'\n    const/4 v5, 0x1', 1)
+anchor = '    :cond_1\n    return-void'
+if content.count(anchor) != 1:
+    raise SystemExit('Could not locate callback exit for activation restart.')
+new = '''    :cond_1
+    if-nez v5, :tv_profile_done
+    sget v1, Landroid/os/Build$VERSION;->SDK_INT:I
+    const/16 v2, 0x21
+    if-lt v1, v2, :tv_check_profile_permission
+    goto :tv_profile_done
+    :tv_check_profile_permission
+    invoke-virtual {p1}, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlFragment;->k()Lcom/cloudflare/app/presentation/main/maincontrol/MainControlViewModel;
+    move-result-object v0
+    iget-object v1, v0, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlViewModel;->a:Lcom/cloudflare/app/domain/connectiontest/VpnProfileStatusService;
+    invoke-virtual {v1}, Lcom/cloudflare/app/domain/connectiontest/VpnProfileStatusService;->b()Z
+    move-result v1
+    if-eqz v1, :tv_profile_done
+    invoke-virtual {v0}, Lcom/cloudflare/app/presentation/main/maincontrol/MainControlViewModel;->d()V
+    :tv_profile_done
+    return-void'''
+content = content.replace(anchor, new, 1)
+profile_result.write_text(content)
 
 # A fresh TV install can reach the dashboard before Cloudflare has a device
 # registration ID. The stock toggle then resets itself and shows a managed-

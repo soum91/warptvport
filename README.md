@@ -23,4 +23,4 @@ The package version and IDs this patch expects are specific to the 6.38.11 build
 
 ## Connection behavior
 
-When there is no Cloudflare device registration, the first activation attempt opens Cloudflare's terms/registration activity. After registration returns to the dashboard, activate the switch again. That second activation should reach Android's VPN consent prompt when permission has not already been granted. Approve it, then verify the connection state and traffic on the Sony A80L. The repo cannot verify tunnel connectivity on hardware.
+When there is no Cloudflare device registration, the first activation opens Cloudflare's terms/registration activity. After registration returns to the dashboard, activate the switch again to reach the VPN profile flow. On Android 12, this `tv.3` build resumes Cloudflare's normal connection start path after VPN consent is granted. Confirm the dashboard changes to Connected and test traffic on the Sony A80L. Tunnel connectivity still needs on-device verification.

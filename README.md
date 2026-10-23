@@ -23,4 +23,10 @@ The package version and IDs this patch expects are specific to the 6.38.11 build
 
 ## Connection behavior
 
-When there is no Cloudflare device registration, the first activation opens Cloudflare's terms/registration activity. After registration returns to the dashboard, activate the switch again to reach the VPN profile flow. On Android 12, this `tv.3` build resumes Cloudflare's normal connection start path after VPN consent is granted. Confirm the dashboard changes to Connected and test traffic on the Sony A80L. Tunnel connectivity still needs on-device verification.
+The original CometSwitch listener only accepts changes preceded by a touchscreen event. RemoteSupport uses performClick(), so earlier TV builds could change the switch appearance without invoking the connection callback.
+
+Version `6.38.11-tv.4` marks click dispatch in CometSwitch, consumes that marker before invoking the existing connection callback, and clears it on normal and exceptional returns. Touch activation still works. Programmatic state synchronization remains silent, including updates made within the callback. The speculative `tv.3` result-callback workaround has been removed; stock VPN result handling already starts the service on Android 12.
+
+When there is no Cloudflare device registration, the first activation opens Cloudflare's terms/registration activity. After registration returns to the dashboard, activate the switch again to reach Android's VPN profile flow.
+
+The input callback can be checked locally. End-to-end WARP registration, tunnel establishment and traffic still require the Sony A80L; successful APK packaging is not a connectivity test.

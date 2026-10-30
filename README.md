@@ -1,6 +1,6 @@
 # WARP TV adaptation for Sony Android TV
 
-Private, owner-maintained adaptation files for the Sony A80L (Android TV 12, ARM32). This project modifies a user-supplied Cloudflare 1.1.1.1 package to add a TV launcher entry, landscape dashboard, remote-friendly focus and activation, and a registration recovery path.
+Owner-maintained adaptation files for the Sony A80L (Android TV 12, ARM32). This project modifies a user-supplied Cloudflare 1.1.1.1 package to add a TV launcher entry, landscape dashboard, remote-friendly focus and activation, and a registration recovery path.
 
 This is an unofficial personal adaptation. Cloudflare owns the original 1.1.1.1 app and its native code. This repository does not contain Cloudflare's APK, decoded app sources, or signing credentials. A matching ARM32 app bundle and local build tools are required. Do not redistribute a rebuilt APK unless you have permission from the relevant rights holders.
 
@@ -30,3 +30,9 @@ Version `6.38.11-tv.4` marks click dispatch in CometSwitch, consumes that marker
 When there is no Cloudflare device registration, the first activation opens Cloudflare's terms/registration activity. After registration returns to the dashboard, activate the switch again to reach Android's VPN profile flow.
 
 The input callback can be checked locally. End-to-end WARP registration, tunnel establishment and traffic still require the Sony A80L; successful APK packaging is not a connectivity test.
+
+## TunerTV IPTV prototype
+
+The companion native TV-first IPTV player is under [`tunertv/`](tunertv/README.md). It accepts owner-entered Xtream Codes or M3U subscriptions, handles remote channel controls, EPG and Xtream VOD, and includes a Sony TV Input Framework experiment. [Its GitHub Actions workflow](.github/workflows/tunertv.yml) builds a test APK and uploads it as an Actions artifact.
+
+**Status:** This is an early playable prototype, not a completed in-process WARP integration. It can monitor a VPN and retry playback when connectivity returns; it cannot yet restart Cloudflare WARP silently. The proprietary WARP TV APK and all IPTV credentials remain outside GitHub.

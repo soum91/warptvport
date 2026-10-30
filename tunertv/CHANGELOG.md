@@ -9,6 +9,7 @@
 - Advanced Android version code to 2 for future update detection.
 - Added a repository-root GitHub Actions workflow to build a TunerTV test APK from `warptvport/tunertv`.
 - Fixed Android CI setup to avoid the obsolete `sdkmanager tools` package.
+- CI now runs the Xtream URL and M3U parser unit tests before uploading an APK artifact.
 
 
 ## 0.1.0 - Initial native Android TV implementation

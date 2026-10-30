@@ -30,8 +30,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
-      - name: Build TunerTV prototype APK
-        run: gradle --no-daemon -p tunertv :app:assembleDebug
+      - name: Test parsers and build TunerTV prototype APK
+        run: gradle --no-daemon -p tunertv :app:testDebugUnitTest :app:assembleDebug
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:

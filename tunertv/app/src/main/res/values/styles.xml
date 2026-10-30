@@ -1,0 +1,11 @@
+<resources>
+    <style name="TunerTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">#05080D</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#45DAA4</item>
+    </style>
+</resources>
+

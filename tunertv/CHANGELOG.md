@@ -8,6 +8,7 @@
 - Documented the source-only public release and limits of automatic WARP recovery. No third-party APK or IPTV secrets are committed.
 - Advanced Android version code to 2 for future update detection.
 - Added a repository-root GitHub Actions workflow to build a TunerTV test APK from `warptvport/tunertv`.
+- Fixed Android CI setup to avoid the obsolete `sdkmanager tools` package.
 
 
 ## 0.1.0 - Initial native Android TV implementation

@@ -586,6 +586,13 @@ public final class MainActivity extends Activity {
         body.addView(button("Publish Xtream channels to Sony's TV tuner", () ->
                 startActivity(new Intent(this, TvInputSetupActivity.class))));
         body.addView(button("Reload live channels", () -> { clearOverlay(); loadLive(); }));
+        try {
+            android.content.pm.PackageInfo installed = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long build = android.os.Build.VERSION.SDK_INT >= 28 ? installed.getLongVersionCode() : installed.versionCode;
+            body.addView(label("Installed version " + installed.versionName + " (build " + build + ")", 14, false));
+        } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+            body.addView(label("Installed version Unknown", 14, false));
+        }
         body.getChildAt(2).requestFocus();
     }
 
